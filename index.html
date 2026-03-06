@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>MathsWorlds Harmonic Portal</title>
+<style>
+body{
+margin:0;
+overflow:hidden;
+background:white;
+}
+</style>
+</head>
+<body>
+<script type="module">
+
+import * as THREE from "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js";
+
+const scene = new THREE.Scene();
+
+const camera = new THREE.PerspectiveCamera(
+60,
+window.innerWidth/window.innerHeight,
+0.1,
+100
+);
+
+camera.position.set(0,2.5,6);
+
+const renderer = new THREE.WebGLRenderer({antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio,1.5));
+renderer.setSize(window.innerWidth,window.innerHeight);
+
+document.body.appendChild(renderer.domElement);
+
+
+
+/* -----------------------
+PORTAL GROUP
+----------------------- */
+
+const portal = new THREE.Group();
+scene.add(portal);
+
+
+
+/* -----------------------
+POLY STRUCTURE
+----------------------- */
+
+const polyGeo = new THREE.IcosahedronGeometry(1.8,1);
+
+const polyMat = new THREE.MeshBasicMaterial({
+wireframe:true,
+transparent:true,
+opacity:0.45
+});
+
+const poly = new THREE.Mesh(polyGeo,polyMat);
+portal.add(poly);
+
+
+
+/* -----------------------
+ENERGY CORE
+----------------------- */
+
+const coreGeo = new THREE.SphereGeometry(0.35,32,32);
+
+const coreMat = new THREE.MeshBasicMaterial({
+color:0xffffff
+});
+
+const core = new THREE.Mesh(coreGeo,coreMat);
+
+portal.add(core);
+
+
+
+/* -----------------------
+PLANES
+----------------------- */
+
+const PLANE_COUNT = 30;
+
+const planes = [];
+
+const geo = new THREE.PlaneGeometry(3.5,3.5,70,30);
+
+for(let i=0;i<PLANE_COUNT;i++){
+
+let mat = new THREE.MeshBasicMaterial({
+side:THREE.DoubleSide,
+transparent:true,
+opacity:0.65
+});
+
+let mesh = new THREE.Mesh(geo.clone(),mat);
+
+mesh.rotation.y = (Math.PI*2/PLANE_COUNT)*i;
+
+portal.add(mesh);
+
+planes.push(mesh);
+
+}
+
+
+
+/* -----------------------
+HARMONIC WAVE
+----------------------- */
+
+function harmonicWave(r,phi,t,l,m){
+
+let theta = r;
+
+let legendre = Math.cos(l*theta);
+
+let harmonic = legendre * Math.sin(m*phi + t*2);
+
+return harmonic;
+
+}
+
+
+
+/* -----------------------
+COLOR SYMMETRY
+----------------------- */
+
+function harmonicColor(i,t){
+
+let hue=(i/PLANE_COUNT + t*0.05)%1;
+
+let c=new THREE.Color();
+
+c.setHSL(hue,0.7,0.55);
+
+return c;
+
+}
+
+
+
+/* -----------------------
+INTERACTION
+----------------------- */
+
+let press=0;
+let vortex=0;
+
+window.addEventListener("pointerdown",()=>{
+
+press=1;
+
+});
+
+
+
+/* -----------------------
+ANIMATION
+----------------------- */
+
+const clock=new THREE.Clock();
+
+function animate(){
+
+requestAnimationFrame(animate);
+
+let t=clock.getElapsedTime();
+
+press*=0.94;
+
+if(press>0.4){
+vortex+=0.02;
+}
+
+
+
+/* PORTAL PRESS */
+
+portal.scale.y = 1 - press*0.5;
+
+
+
+/* POLY ROTATION */
+
+poly.rotation.x+=0.002;
+poly.rotation.y+=0.003+press*0.04;
+
+
+
+/* CORE */
+
+core.scale.setScalar(1+press);
+
+
+
+/* HARMONIC WAVES */
+
+planes.forEach((mesh,i)=>{
+
+let l = 3 + (i%4);
+let m = 1 + (i%5);
+
+let pos = mesh.geometry.attributes.position;
+
+for(let k=0;k<pos.count;k++){
+
+let x=pos.getX(k);
+let y=pos.getY(k);
+
+let r=Math.sqrt(x*x+y*y);
+
+let phi=Math.atan2(y,x);
+
+let z=harmonicWave(r,phi,t,l,m);
+
+let collapse = 1 - vortex*0.6;
+
+pos.setZ(k,z*0.35*collapse);
+
+}
+
+pos.needsUpdate=true;
+
+
+
+mesh.material.color=harmonicColor(i,t);
+
+
+
+mesh.rotation.z += vortex*0.02;
+
+});
+
+
+
+/* PORTAL OPEN */
+
+if(vortex>1.2){
+
+console.log("Launching MathsWorld");
+
+}
+
+
+
+renderer.render(scene,camera);
+
+}
+
+animate();
+
+
+
+/* -----------------------
+RESIZE
+----------------------- */
+
+window.addEventListener("resize",()=>{
+
+camera.aspect=window.innerWidth/window.innerHeight;
+
+camera.updateProjectionMatrix();
+
+renderer.setSize(window.innerWidth,window.innerHeight);
+
+});
+
+</script>
+</body>
+</html>
